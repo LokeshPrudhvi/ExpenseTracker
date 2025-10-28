@@ -50,7 +50,7 @@ import { defineConfig } from 'vite';
     },
     build: {
       target: 'esnext',
-      outDir: 'dist',  // CHANGED FROM 'build' TO 'dist'
+      outDir: 'dist',
     },
     server: {
       port: 3000,
