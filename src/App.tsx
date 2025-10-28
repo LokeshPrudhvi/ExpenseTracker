@@ -34,7 +34,7 @@ import { ArrowLeft, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { EXPENSE_CATEGORIES } from "./utils/constants";
 
-const API_URL = "VITE_API_URL=https://expensetracker-vt47.onrender.com/api";
+const API_URL = "https://expensetracker-vt47.onrender.com/api";
 
 interface UserProfile {
   id: string;
