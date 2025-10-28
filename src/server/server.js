@@ -29,7 +29,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "http://localhost:5173", // Vite dev server
-      "https://your-vercel-app.vercel.app", // Replace with your actual Vercel URL
+      "https://expense-tracker-phi-murex-56.vercel.app", // Replace with your actual Vercel URL
       process.env.CORS_ORIGIN,
     ].filter(Boolean), // Remove undefined values
     credentials: true,
