@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = "https://expensetracker-vt47.onrender.com/api";
 
 interface Expense {
   _id: string;

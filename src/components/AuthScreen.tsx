@@ -17,7 +17,7 @@ import {
 import { toast } from "sonner";
 
 // API Base URL
-const API_URL = "http://localhost:5000/api/auth";
+const API_URL = "https://expensetracker-vt47.onrender.com/api/auth";
 
 interface UserProfile {
   email: string;
