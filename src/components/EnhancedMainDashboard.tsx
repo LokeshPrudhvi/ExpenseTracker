@@ -88,7 +88,7 @@ export function EnhancedMainDashboard({
   income,
   currency,
   expenses,
-  onDeleteExpense, // ADD THIS LINE
+  onDeleteExpense,
   onQuickAdd,
   onViewExpenses,
   onViewAnalytics,
@@ -100,7 +100,6 @@ export function EnhancedMainDashboard({
   const [selectedPeriod, setSelectedPeriod] = useState<"month" | "week">(
     "month"
   );
-  // REMOVED: const [expenses, setExpenses] = useState<Expense[]>([]);
   const [emis, setEmis] = useState<EMI[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<
     RecurringExpense[]
@@ -134,7 +133,6 @@ export function EnhancedMainDashboard({
       ]);
 
       // Your backend returns data in response.data.data
-      // REMOVED: setExpenses(expensesRes.data.data || []);
       setEmis(emisRes.data.data || []);
       setRecurringExpenses(recurringRes.data.data || []);
       setSavingsGoals(goalsRes.data.data || []);
@@ -258,129 +256,7 @@ export function EnhancedMainDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      {expenses.length > 0 && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <p className="text-sm text-blue-900 dark:text-blue-100">
-            👋 Welcome back! You have {periodExpenses.length} expense
-            {periodExpenses.length !== 1 ? "s" : ""} this {selectedPeriod}
-          </p>
-        </div>
-      )}
-
-      {/* Financial Health Quick Access */}
-      {expenses.length > 0 && (
-        <Card
-          className="p-4 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800"
-          onClick={onViewHealth}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <Activity className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Financial Health Score</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {healthScore.toFixed(0)}/100 • {healthStatus.label}
-                </p>
-              </div>
-            </div>
-            <ArrowRight className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
-          </div>
-        </Card>
-      )}
-
-      {/* Finance Widgets Grid */}
-      {(activeEMIs.length > 0 ||
-        activeRecurring.length > 0 ||
-        savingsGoals.length > 0) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* EMI Tracker Widget */}
-          {activeEMIs.length > 0 && (
-            <Card
-              className="p-4 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow"
-              onClick={onViewEMI}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center shrink-0">
-                  <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <Badge className="bg-purple-600 shrink-0">
-                  {activeEMIs.length}
-                </Badge>
-              </div>
-
-              <p className="text-xs text-muted-foreground mb-1">EMI Tracker</p>
-              <p className="text-2xl font-bold tabular-nums mb-1">
-                {currency} {totalMonthlyEMI.toLocaleString()}
-              </p>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  {activeEMIs.length} active EMI
-                  {activeEMIs.length !== 1 ? "s" : ""}
-                </span>
-                <ArrowRight className="w-4 h-4" />
-              </div>
-            </Card>
-          )}
-
-          {/* Recurring Expenses Widget */}
-          {activeRecurring.length > 0 && (
-            <Card
-              className="p-4 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow"
-              onClick={onViewRecurring}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center shrink-0">
-                  <Repeat className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <Badge className="bg-blue-600 shrink-0">
-                  {activeRecurring.length}
-                </Badge>
-              </div>
-
-              <p className="text-xs text-muted-foreground mb-1">Recurring</p>
-              <p className="text-2xl font-bold tabular-nums mb-1">
-                {currency} {totalMonthlyRecurring.toLocaleString()}
-              </p>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{activeRecurring.length} active</span>
-                <ArrowRight className="w-4 h-4" />
-              </div>
-            </Card>
-          )}
-
-          {/* Savings Goals Widget */}
-          {savingsGoals.length > 0 && (
-            <Card
-              className="p-4 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow"
-              onClick={onViewGoals}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center shrink-0">
-                  <Target className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <Badge className="bg-amber-600 shrink-0">
-                  {savingsGoals.length}
-                </Badge>
-              </div>
-
-              <p className="text-xs text-muted-foreground mb-1">
-                Savings Goals
-              </p>
-              <p className="text-2xl font-bold tabular-nums mb-1">
-                {savingsProgress.toFixed(0)}%
-              </p>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="truncate">
-                  {currency} {totalSavingsCurrent.toLocaleString()} /{" "}
-                  {totalSavingsGoal.toLocaleString()}
-                </span>
-                <ArrowRight className="w-4 h-4 shrink-0" />
-              </div>
-            </Card>
-          )}
-        </div>
-      )}
+      
 
       {/* Monthly Obligations Summary */}
       {totalMonthlyObligations > 0 && (
@@ -542,48 +418,132 @@ export function EnhancedMainDashboard({
         </div>
       </Card>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Financial Health Card */}
+      {expenses.length > 0 && (
         <Card
-          className="p-4 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow"
-          onClick={onViewAnalytics}
+          className="p-4 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800"
+          onClick={onViewHealth}
         >
-          <div className="flex flex-col items-center text-center gap-2">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-              <PieChart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Activity className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Financial Health Score</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {healthScore.toFixed(0)}/100 • {healthStatus.label}
+                </p>
+              </div>
             </div>
-            <p className="text-xs font-medium">Analytics</p>
+            <ArrowRight className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
           </div>
         </Card>
+      )}
+      {/* Finance Widgets Grid */}
+{(activeEMIs.length > 0 ||
+  activeRecurring.length > 0 ||
+  savingsGoals.length > 0) && (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+    {/* EMI Tracker Widget */}
+    {activeEMIs.length > 0 && (
+      <Card
+        className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+        onClick={onViewEMI}
+      >
+        <div className="flex flex-col md:flex-col gap-3">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center shrink-0">
+              <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            </div>
+            <Badge className="bg-purple-600 text-xs shrink-0">
+              {activeEMIs.length}
+            </Badge>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground mb-1">EMI Tracker</p>
+            <p className="text-xl md:text-2xl font-bold tabular-nums mb-2">
+              {currency} {totalMonthlyEMI.toLocaleString()}
+            </p>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{activeEMIs.length} active</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      </Card>
+    )}
 
-        <Card
-          className="p-4 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow"
-          onClick={onViewGoals}
-        >
-          <div className="flex flex-col items-center text-center gap-2">
-            <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-              <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
+    {/* Recurring Expenses Widget */}
+    {activeRecurring.length > 0 && (
+      <Card
+        className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+        onClick={onViewRecurring}
+      >
+        <div className="flex flex-col md:flex-col gap-3">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center shrink-0">
+              <Repeat className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
-            <p className="text-xs font-medium">Goals</p>
+            <Badge className="bg-blue-600 text-xs shrink-0">
+              {activeRecurring.length}
+            </Badge>
           </div>
-        </Card>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground mb-1">Recurring</p>
+            <p className="text-xl md:text-2xl font-bold tabular-nums mb-2">
+              {currency} {totalMonthlyRecurring.toLocaleString()}
+            </p>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{activeRecurring.length} active</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      </Card>
+    )}
 
-        <Card
-          className="p-4 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow"
-          onClick={onViewExpenses}
-        >
-          <div className="flex flex-col items-center text-center gap-2">
-            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+    {/* Savings Goals Widget */}
+    {savingsGoals.length > 0 && (
+      <Card
+        className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+        onClick={onViewGoals}
+      >
+        <div className="flex flex-col md:flex-col gap-3">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center shrink-0">
+              <Target className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <p className="text-xs font-medium">Expenses</p>
+            <Badge className="bg-amber-600 text-xs shrink-0">
+              {savingsGoals.length}
+            </Badge>
           </div>
-        </Card>
-      </div>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground mb-1">Savings Goals</p>
+            <p className="text-xl md:text-2xl font-bold tabular-nums mb-2">
+              {savingsProgress.toFixed(0)}%
+            </p>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="truncate">
+                {currency} {totalSavingsCurrent.toLocaleString()} /{" "}
+                {totalSavingsGoal.toLocaleString()}
+              </span>
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </div>
+          </div>
+        </div>
+      </Card>
+    )}
+  </div>
+)}
+
+
       {/* Recent Expenses List */}
       {expenses.length > 0 && (
         <ExpenseList
-          expenses={expenses.slice(0, 5)} // Show only last 5 expenses
+          expenses={expenses
+            .sort(
+              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+            )
+            .slice(0, 5)}
           onDeleteExpense={onDeleteExpense}
           currency={currency}
         />

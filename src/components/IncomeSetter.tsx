@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -13,22 +14,57 @@ interface IncomeSetterProps {
   currency: string;
 }
 
-export function IncomeSetter({ currentIncome, onUpdateIncome, currency }: IncomeSetterProps) {
+const API_URL = import.meta.env.VITE_API_URL;
+
+export function IncomeSetter({
+  currentIncome,
+  onUpdateIncome,
+  currency,
+}: IncomeSetterProps) {
   const [income, setIncome] = useState(currentIncome.toString());
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Get auth config
+  const getAuthConfig = () => {
+    const token = localStorage.getItem("authToken");
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newIncome = parseFloat(income);
-    
+
     if (isNaN(newIncome) || newIncome < 0) {
-      toast.error('Please enter a valid income amount');
+      toast.error("Please enter a valid income amount");
       return;
     }
 
-    onUpdateIncome(newIncome);
-    setIsEditing(false);
-    toast.success('Monthly income updated!');
+    setIsLoading(true);
+    try {
+      const config = getAuthConfig();
+
+      // Update income in backend
+      const response = await axios.put(
+        `${API_URL}/auth/profile`,
+        { monthlyIncome: newIncome },
+        config
+      );
+
+      // Update local state
+      onUpdateIncome(newIncome);
+      setIsEditing(false);
+      toast.success("Monthly income updated!");
+    } catch (error) {
+      console.error("Error updating income:", error);
+      toast.error("Failed to update income");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isEditing) {
@@ -46,7 +82,12 @@ export function IncomeSetter({ currentIncome, onUpdateIncome, currency }: Income
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditing(true)}
+            disabled={isLoading}
+          >
             Edit
           </Button>
         </div>
@@ -61,7 +102,7 @@ export function IncomeSetter({ currentIncome, onUpdateIncome, currency }: Income
           <DollarSign className="w-5 h-5 text-green-500" />
           <h3>Set Monthly Income</h3>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="income">Income Amount ({currency})</Label>
           <Input
@@ -73,21 +114,23 @@ export function IncomeSetter({ currentIncome, onUpdateIncome, currency }: Income
             onChange={(e) => setIncome(e.target.value)}
             className="bg-input-background"
             autoFocus
+            disabled={isLoading}
           />
         </div>
-        
+
         <div className="flex gap-2">
-          <Button type="submit" className="flex-1">
+          <Button type="submit" className="flex-1" disabled={isLoading}>
             <Check className="w-4 h-4 mr-2" />
-            Save Income
+            {isLoading ? "Saving..." : "Save Income"}
           </Button>
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             onClick={() => {
               setIncome(currentIncome.toString());
               setIsEditing(false);
             }}
+            disabled={isLoading}
           >
             Cancel
           </Button>

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { type Expense } from "./components/ExpenseForm";
 import { AuthScreen } from "./components/AuthScreen";
 import { QuickOnboarding } from "./components/QuickOnboarding";
 import { FirstExpenseWelcome } from "./components/FirstExpenseWelcome";
@@ -34,8 +33,8 @@ import { ArrowLeft, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { EXPENSE_CATEGORIES } from "./utils/constants";
 
-const API_URL = "https://expensetracker-vt47.onrender.com/api/auth/api";
-
+// const API_URL = "http://localhost:5000/api";
+const API_URL = "https://expensetracker-vt47.onrender.com/api";
 interface UserProfile {
   id: string;
   email: string;
@@ -147,18 +146,20 @@ export default function App() {
         axios.get(`${API_URL}/recurring`, config),
       ]);
 
-      setExpenses(expensesRes.data.data || []);
-      setSavingsGoals(goalsRes.data.data || []);
-      setRecurringExpenses(recurringRes.data.data || []);
+      // Add logging
+      console.log("📊 Raw expenses from backend:", expensesRes.data.data);
 
-      // Check onboarding status
-      const firstExpenseAdded = localStorage.getItem("firstExpenseAdded");
-      if (
-        (expensesRes.data.data || []).length === 0 &&
-        firstExpenseAdded !== "true"
-      ) {
-        setShowFirstExpenseWelcome(true);
-      }
+      const normalizedExpenses = (expensesRes.data.data || []).map(
+        (expense: any) => ({
+          ...expense,
+          id: expense._id,
+        })
+      );
+
+      console.log("📊 Normalized expenses:", normalizedExpenses); // ADD THIS
+
+      setExpenses(normalizedExpenses);
+      // ... rest of code
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load some data");
@@ -171,6 +172,8 @@ export default function App() {
     isNewUser: boolean = false
   ) => {
     try {
+      console.log("🔍 handleAuthSuccess called with:", { profile, isNewUser }); // ADD THIS
+
       setUserProfile({
         id: profile.id || profile._id,
         email: profile.email,
@@ -185,18 +188,23 @@ export default function App() {
       setCurrency(profile.currency || "USD");
       setIsAuthenticated(true);
 
+      console.log("✅ State set, now calling fetchAllData..."); // ADD THIS
+
       // Fetch all data after login
       await fetchAllData();
+
+      console.log("✅ fetchAllData completed"); // ADD THIS
 
       // Show onboarding ONLY for new users who haven't completed it
       if (isNewUser && !profile.onboardingComplete) {
         setShowOnboarding(true);
       }
     } catch (error) {
-      console.error("Error during authentication:", error);
+      console.error("❌ Error during authentication:", error); // Modified
       toast.error("Authentication error. Please try again.");
     }
   };
+
   const handleOnboardingComplete = async (data: {
     income: number;
     currency: string;
@@ -253,6 +261,8 @@ export default function App() {
   };
 
   const addExpense = async (expenseData: Omit<Expense, "id">) => {
+    console.log("🔍 addExpense called with:", expenseData); // ADD THIS
+
     try {
       const config = getAuthConfig();
 
@@ -262,11 +272,13 @@ export default function App() {
         config
       );
 
-      setExpenses((prev) => [...prev, response.data.data]);
+      console.log("✅ Expense added to backend:", response.data.data); // ADD THIS
+
       toast.success("Expense added successfully! 💰");
 
-      // Trigger a re-fetch of all data to update dashboard
       await fetchAllData();
+
+      console.log("✅ fetchAllData completed"); // ADD THIS
     } catch (error) {
       console.error("Error adding expense:", error);
       toast.error("Failed to add expense");

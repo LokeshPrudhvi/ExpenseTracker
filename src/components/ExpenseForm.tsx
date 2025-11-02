@@ -3,7 +3,13 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Plus, Calendar } from "lucide-react";
@@ -20,46 +26,48 @@ export interface Expense {
 }
 
 interface ExpenseFormProps {
-  onAddExpense: (expense: Omit<Expense, 'id'>) => void;
+  onAddExpense: (expense: Omit<Expense, "id">) => void;
   categories: string[];
 }
 
 export function ExpenseForm({ onAddExpense, categories }: ExpenseFormProps) {
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
-  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
   const [isEMI, setIsEMI] = useState(false);
-  const [emiStartDate, setEmiStartDate] = useState('');
-  const [emiEndDate, setEmiEndDate] = useState('');
+  const [emiStartDate, setEmiStartDate] = useState("");
+  const [emiEndDate, setEmiEndDate] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    e.stopPropagation(); 
+
     if (!amount || !category || !description) return;
     if (isEMI && !emiEndDate) return;
 
-    const expenseData: Omit<Expense, 'id'> = {
+    const expenseData: Omit<Expense, "id"> = {
       amount: parseFloat(amount),
       category,
       description,
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split("T")[0],
     };
 
     if (isEMI) {
       expenseData.isEMI = true;
       expenseData.emiEndDate = emiEndDate;
-      expenseData.emiStartDate = emiStartDate || new Date().toISOString().split('T')[0];
+      expenseData.emiStartDate =
+        emiStartDate || new Date().toISOString().split("T")[0];
     }
 
     onAddExpense(expenseData);
 
     // Reset form
-    setAmount('');
-    setCategory('');
-    setDescription('');
+    setAmount("");
+    setCategory("");
+    setDescription("");
     setIsEMI(false);
-    setEmiStartDate('');
-    setEmiEndDate('');
+    setEmiStartDate("");
+    setEmiEndDate("");
   };
 
   return (
@@ -68,7 +76,7 @@ export function ExpenseForm({ onAddExpense, categories }: ExpenseFormProps) {
         <Plus className="w-5 h-5" />
         Add New Expense
       </h2>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -83,7 +91,7 @@ export function ExpenseForm({ onAddExpense, categories }: ExpenseFormProps) {
               className="bg-input-background"
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
             <Select value={category} onValueChange={setCategory}>
@@ -100,7 +108,7 @@ export function ExpenseForm({ onAddExpense, categories }: ExpenseFormProps) {
             </Select>
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="description">Description</Label>
           <Textarea
@@ -125,11 +133,7 @@ export function ExpenseForm({ onAddExpense, categories }: ExpenseFormProps) {
               </p>
             </div>
           </div>
-          <Switch
-            id="emi-toggle"
-            checked={isEMI}
-            onCheckedChange={setIsEMI}
-          />
+          <Switch id="emi-toggle" checked={isEMI} onCheckedChange={setIsEMI} />
         </div>
 
         {/* EMI Date Fields */}
@@ -149,7 +153,7 @@ export function ExpenseForm({ onAddExpense, categories }: ExpenseFormProps) {
                 Leave empty to use today's date
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="emi-end">EMI End Date *</Label>
               <Input
@@ -159,7 +163,7 @@ export function ExpenseForm({ onAddExpense, categories }: ExpenseFormProps) {
                 onChange={(e) => setEmiEndDate(e.target.value)}
                 className="bg-input-background"
                 required={isEMI}
-                min={emiStartDate || new Date().toISOString().split('T')[0]}
+                min={emiStartDate || new Date().toISOString().split("T")[0]}
               />
               <p className="text-xs text-muted-foreground">
                 When will this EMI end?
@@ -167,7 +171,7 @@ export function ExpenseForm({ onAddExpense, categories }: ExpenseFormProps) {
             </div>
           </div>
         )}
-        
+
         <Button type="submit" className="w-full">
           Add Expense
         </Button>
