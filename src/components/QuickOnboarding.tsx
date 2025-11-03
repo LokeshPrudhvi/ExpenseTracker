@@ -340,8 +340,18 @@ export function QuickOnboarding({
                 </Button>
                 <Button
                   onClick={handleFinalComplete}
-                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  style={{
+                    backgroundColor: "#000000",
+                    color: "#ffffff",
+                    flex: 1,
+                  }}
                   size="lg"
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor = "#1a1a1a")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = "#000000")
+                  }
                 >
                   Start Tracking
                   <ChevronRight className="w-4 h-4 ml-2" />
