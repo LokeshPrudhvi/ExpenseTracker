@@ -54,6 +54,7 @@ interface RecurringExpensesProps {
   onUpdate: (expenses: RecurringExpense[]) => void;
   currency: string;
   categories: Array<{ value: string; label: string; icon: string }>;
+  isOnboarding?: boolean;
 }
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -63,8 +64,9 @@ export function RecurringExpenses({
   onUpdate,
   currency,
   categories,
+  isOnboarding = false,
 }: RecurringExpensesProps) {
-  const [showDialog, setShowDialog] = useState(false);
+  const [showDialog, setShowDialog] = useState(isOnboarding); // Start with dialog open if onboarding
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -86,10 +88,12 @@ export function RecurringExpenses({
     };
   };
 
-  // Fetch recurring expenses on mount
+  // Fetch recurring expenses on mount - SKIP if onboarding
   useEffect(() => {
-    fetchRecurringExpenses();
-  }, []);
+    if (!isOnboarding) {
+      fetchRecurringExpenses();
+    }
+  }, [isOnboarding]);
 
   const fetchRecurringExpenses = async () => {
     try {
@@ -168,7 +172,11 @@ export function RecurringExpenses({
       setDayOfMonth("1");
       setFrequency("monthly");
       setNotes("");
-      setShowDialog(false);
+
+      // Only close dialog if not onboarding
+      if (!isOnboarding) {
+        setShowDialog(false);
+      }
     } catch (error) {
       console.error("Error adding recurring expense:", error);
       toast.error("Failed to add recurring expense");
@@ -281,40 +289,47 @@ export function RecurringExpenses({
   return (
     <div className="space-y-6">
       {/* Info Banner */}
-      <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg">
-        <p className="text-sm text-purple-900 dark:text-purple-100">
-          🔄 Set up expenses that repeat regularly, like monthly rent or
-          subscriptions.
-        </p>
-      </div>
+      {!isOnboarding && (
+        <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+          <p className="text-sm text-purple-900 dark:text-purple-100">
+            🔄 Set up expenses that repeat regularly, like monthly rent or
+            subscriptions.
+          </p>
+        </div>
+      )}
 
       {/* Summary Card */}
-      <Card className="p-6 shadow-xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border-purple-200 dark:border-purple-800">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3>Monthly Recurring Total</h3>
-            <p className="text-xs text-muted-foreground">
-              {expenses.filter((e) => e.isActive && e.frequency === "monthly")
-                .length}{" "}
-              active recurring expenses
-            </p>
+      {!isOnboarding && (
+        <Card className="p-6 shadow-xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border-purple-200 dark:border-purple-800">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3>Monthly Recurring Total</h3>
+              <p className="text-xs text-muted-foreground">
+                {
+                  expenses.filter(
+                    (e) => e.isActive && e.frequency === "monthly"
+                  ).length
+                }{" "}
+                active recurring expenses
+              </p>
+            </div>
+            <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-0 text-lg px-4 py-2">
+              {currency} {totalMonthly.toLocaleString()}
+            </Badge>
           </div>
-          <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-0 text-lg px-4 py-2">
-            {currency} {totalMonthly.toLocaleString()}
-          </Badge>
-        </div>
-        <Button
-          onClick={() => setShowDialog(true)}
-          className="w-full"
-          disabled={isLoading}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Recurring Expense
-        </Button>
-      </Card>
+          <Button
+            onClick={() => setShowDialog(true)}
+            className="w-full"
+            disabled={isLoading}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Recurring Expense
+          </Button>
+        </Card>
+      )}
 
       {/* Expenses List */}
-      {expenses.length === 0 ? (
+      {!isOnboarding && expenses.length === 0 ? (
         <Card className="p-8 text-center shadow-xl">
           <Repeat className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
           <h4>No Recurring Expenses</h4>
@@ -327,7 +342,7 @@ export function RecurringExpenses({
             Add First Recurring Expense
           </Button>
         </Card>
-      ) : (
+      ) : !isOnboarding && expenses.length > 0 ? (
         <div className="space-y-3">
           {expenses.map((expense) => {
             const daysUntil =
@@ -401,9 +416,7 @@ export function RecurringExpenses({
                       <Button
                         size="sm"
                         variant={expense.isActive ? "outline" : "default"}
-                        onClick={() =>
-                          handleToggle(expense.id || expense._id)
-                        }
+                        onClick={() => handleToggle(expense.id || expense._id)}
                         disabled={isLoading}
                       >
                         {expense.isActive ? "Pause" : "Activate"}
@@ -423,7 +436,7 @@ export function RecurringExpenses({
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {/* Add Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>

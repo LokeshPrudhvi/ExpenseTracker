@@ -44,12 +44,13 @@ interface EMI {
 
 interface EMITrackerProps {
   currency: string;
+  isOnboarding?: boolean;
 }
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const getAuthConfig = () => {
-  const token = localStorage.getItem("authToken"); // Changed from "token" to "authToken"
+  const token = localStorage.getItem("authToken");
   return {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -57,9 +58,12 @@ const getAuthConfig = () => {
   };
 };
 
-export function EMITracker({ currency }: EMITrackerProps) {
+export function EMITracker({
+  currency,
+  isOnboarding = false,
+}: EMITrackerProps) {
   const [emis, setEmis] = useState<EMI[]>([]);
-  const [isAdding, setIsAdding] = useState(false);
+  const [isAdding, setIsAdding] = useState(isOnboarding); // Start with form open if onboarding
   const [isLoading, setIsLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [newEMI, setNewEMI] = useState({
@@ -74,10 +78,12 @@ export function EMITracker({ currency }: EMITrackerProps) {
     notes: "",
   });
 
-  // Fetch EMIs on mount
+  // Fetch EMIs on mount - SKIP if onboarding
   useEffect(() => {
-    fetchEMIs();
-  }, []);
+    if (!isOnboarding) {
+      fetchEMIs();
+    }
+  }, [isOnboarding]);
 
   const fetchEMIs = async () => {
     try {
@@ -192,7 +198,12 @@ export function EMITracker({ currency }: EMITrackerProps) {
         interestRate: "",
         notes: "",
       });
-      setIsAdding(false);
+
+      // Only close form if not onboarding
+      if (!isOnboarding) {
+        setIsAdding(false);
+      }
+
       toast.success("EMI added successfully!");
     } catch (error) {
       console.error("Error adding EMI:", error);
@@ -225,35 +236,32 @@ export function EMITracker({ currency }: EMITrackerProps) {
 
   return (
     <div className="space-y-6">
-      {/* Info Banner */}
-      <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg">
-        <p className="text-sm text-purple-900 dark:text-purple-100">
-          💳 Track your EMI payments and loan progress
-        </p>
-      </div>
-
-      <Card className="p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5" />
-            EMI & Loan Tracker
-          </h3>
-          {!isAdding && (
-            <Button
-              size="sm"
-              onClick={() => setIsAdding(true)}
-              disabled={isLoading}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add EMI
-            </Button>
-          )}
-        </div>
+      <Card className={isOnboarding ? "p-4" : "p-6 shadow-xl"}>
+        {!isOnboarding && (
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              EMI & Loan Tracker
+            </h3>
+            {!isAdding && (
+              <Button
+                size="sm"
+                onClick={() => setIsAdding(true)}
+                disabled={isLoading}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add EMI
+              </Button>
+            )}
+          </div>
+        )}
 
         {isAdding && (
           <form
             onSubmit={handleAddEMI}
-            className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800"
+            className={`${
+              isOnboarding ? "mb-4" : "mb-6"
+            } p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800`}
           >
             <h4 className="mb-4">Add New EMI/Loan</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -378,32 +386,34 @@ export function EMITracker({ currency }: EMITrackerProps) {
               <Button type="submit" size="sm" disabled={isLoading}>
                 {isLoading ? "Adding..." : "Add EMI"}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsAdding(false);
-                  setNewEMI({
-                    name: "",
-                    totalAmount: "",
-                    monthlyEMI: "",
-                    startDate: "",
-                    endDate: "",
-                    dueDate: "1",
-                    category: "EMI",
-                    interestRate: "",
-                    notes: "",
-                  });
-                }}
-              >
-                Cancel
-              </Button>
+              {!isOnboarding && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsAdding(false);
+                    setNewEMI({
+                      name: "",
+                      totalAmount: "",
+                      monthlyEMI: "",
+                      startDate: "",
+                      endDate: "",
+                      dueDate: "1",
+                      category: "EMI",
+                      interestRate: "",
+                      notes: "",
+                    });
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
             </div>
           </form>
         )}
 
-        {activeEMIs.length > 0 && (
+        {!isOnboarding && activeEMIs.length > 0 && (
           <div className="mb-6 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
             <div className="flex items-center justify-between">
               <div>
@@ -419,7 +429,7 @@ export function EMITracker({ currency }: EMITrackerProps) {
           </div>
         )}
 
-        {sortedEMIs.length === 0 ? (
+        {!isOnboarding && sortedEMIs.length === 0 && !isAdding ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
               <CreditCard className="w-8 h-8 text-blue-600" />
@@ -428,14 +438,12 @@ export function EMITracker({ currency }: EMITrackerProps) {
             <p className="text-sm text-muted-foreground mb-4">
               Track your loans and monthly payments
             </p>
-            {!isAdding && (
-              <Button onClick={() => setIsAdding(true)} variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First EMI
-              </Button>
-            )}
+            <Button onClick={() => setIsAdding(true)} variant="outline">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Your First EMI
+            </Button>
           </div>
-        ) : (
+        ) : !isOnboarding && sortedEMIs.length > 0 ? (
           <div className="space-y-4">
             {sortedEMIs.map((emi) => {
               const monthsRemaining = calculateMonthsRemaining(emi.endDate);
@@ -496,7 +504,7 @@ export function EMITracker({ currency }: EMITrackerProps) {
               );
             })}
           </div>
-        )}
+        ) : null}
       </Card>
 
       {/* Delete Confirmation Dialog */}

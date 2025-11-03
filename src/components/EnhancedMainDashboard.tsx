@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
@@ -115,7 +115,7 @@ export function EnhancedMainDashboard({
     };
   };
 
-  // Fetch all data from your backend
+  // Fetch all data from backend
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -132,7 +132,7 @@ export function EnhancedMainDashboard({
         axios.get(`${API_URL}/savings`, config),
       ]);
 
-      // Your backend returns data in response.data.data
+      // Backend returns data in response.data.data
       setEmis(emisRes.data.data || []);
       setRecurringExpenses(recurringRes.data.data || []);
       setSavingsGoals(goalsRes.data.data || []);
@@ -148,83 +148,118 @@ export function EnhancedMainDashboard({
     }
   };
 
-  // Get current period expenses
-  const now = new Date();
-  const periodExpenses = expenses.filter((exp) => {
-    const expDate = new Date(exp.date);
-    if (selectedPeriod === "month") {
-      return (
-        expDate.getMonth() === now.getMonth() &&
-        expDate.getFullYear() === now.getFullYear()
-      );
-    } else {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return expDate >= weekAgo;
-    }
-  });
+  // Wrap all calculations in useMemo with proper dependencies
+  const calculations = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Normalize to start of day
 
-  const totalSpent = periodExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const remaining = income - totalSpent;
-  const spendingRate = income > 0 ? (totalSpent / income) * 100 : 0;
+    // Get current period expenses with normalized dates
+    const periodExpenses = expenses.filter((exp) => {
+      const expDate = new Date(exp.date);
+      expDate.setHours(0, 0, 0, 0); // Normalize to start of day
 
-  // Calculate active EMI total
-  const activeEMIs = emis.filter((emi) => {
-    const endDate = new Date(emi.endDate);
-    return endDate >= now;
-  });
-  const totalMonthlyEMI = activeEMIs.reduce(
-    (sum, emi) => sum + emi.monthlyEMI,
-    0
-  );
+      if (selectedPeriod === "month") {
+        return (
+          expDate.getMonth() === now.getMonth() &&
+          expDate.getFullYear() === now.getFullYear()
+        );
+      } else {
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return expDate >= weekAgo;
+      }
+    });
 
-  // Calculate active recurring total
-  const activeRecurring = recurringExpenses.filter((rec) => {
-    if (rec.endDate) {
-      const endDate = new Date(rec.endDate);
+    // Calculate active EMIs
+    const activeEMIs = emis.filter((emi) => {
+      const endDate = new Date(emi.endDate);
+      endDate.setHours(0, 0, 0, 0);
       return endDate >= now;
-    }
-    return true; // No end date means it's active
-  });
-  const totalMonthlyRecurring = activeRecurring.reduce(
-    (sum, rec) => sum + rec.amount,
-    0
-  );
+    });
+    const totalMonthlyEMI = activeEMIs.reduce(
+      (sum, emi) => sum + (emi.monthlyEMI || 0),
+      0
+    );
 
-  // Calculate total monthly obligations
-  const totalMonthlyObligations = totalMonthlyEMI + totalMonthlyRecurring;
+    // Calculate active recurring expenses
+    const activeRecurring = recurringExpenses.filter((rec) => {
+      if (rec.endDate) {
+        const endDate = new Date(rec.endDate);
+        endDate.setHours(0, 0, 0, 0);
+        return endDate >= now;
+      }
+      return true; // No end date means it's active
+    });
+    const totalMonthlyRecurring = activeRecurring.reduce(
+      (sum, rec) => sum + (rec.amount || 0),
+      0
+    );
 
-  // Savings goals stats
-  const totalSavingsGoal = savingsGoals.reduce(
-    (sum, goal) => sum + goal.targetAmount,
-    0
-  );
-  const totalSavingsCurrent = savingsGoals.reduce(
-    (sum, goal) => sum + goal.currentAmount,
-    0
-  );
-  const savingsProgress =
-    totalSavingsGoal > 0 ? (totalSavingsCurrent / totalSavingsGoal) * 100 : 0;
+    // Total monthly obligations
+    const totalMonthlyObligations = totalMonthlyEMI + totalMonthlyRecurring;
 
-  // Calculate financial health score
-  const calculateHealthScore = () => {
-    let score = 100;
+    // Total spent from expenses
+    const totalSpent = periodExpenses.reduce(
+      (sum, exp) => sum + (exp.amount || 0),
+      0
+    );
 
-    if (spendingRate > 100) score -= 30;
-    else if (spendingRate > 80) score -= 15;
+    // IMPORTANT: Include obligations in monthly spent automatically
+    const totalWithObligations = totalSpent + totalMonthlyObligations;
+    const remaining = income - totalWithObligations;
+    const spendingRate = income > 0 ? (totalWithObligations / income) * 100 : 0;
 
+    // Savings goals stats
+    const totalSavingsGoal = savingsGoals.reduce(
+      (sum, goal) => sum + (goal.targetAmount || 0),
+      0
+    );
+    const totalSavingsCurrent = savingsGoals.reduce(
+      (sum, goal) => sum + (goal.currentAmount || 0),
+      0
+    );
+    const savingsProgress =
+      totalSavingsGoal > 0 ? (totalSavingsCurrent / totalSavingsGoal) * 100 : 0;
+
+    // Calculate financial health score
+    let healthScore = 100;
+
+    // Spending rate impact (includes obligations)
+    if (spendingRate > 100) healthScore -= 30;
+    else if (spendingRate > 80) healthScore -= 15;
+
+    // Obligation rate impact
     const obligationRate =
       income > 0 ? (totalMonthlyObligations / income) * 100 : 0;
-    if (obligationRate > 60) score -= 25;
-    else if (obligationRate > 40) score -= 15;
+    if (obligationRate > 60) healthScore -= 25;
+    else if (obligationRate > 40) healthScore -= 15;
 
-    if (savingsProgress > 80) score += 10;
-    else if (savingsProgress > 50) score += 5;
+    // Savings progress impact
+    if (savingsProgress > 80) healthScore += 10;
+    else if (savingsProgress > 50) healthScore += 5;
 
-    return Math.max(0, Math.min(100, score));
-  };
+    healthScore = Math.max(0, Math.min(100, healthScore));
 
-  const healthScore = calculateHealthScore();
+    return {
+      periodExpenses,
+      activeEMIs,
+      totalMonthlyEMI,
+      activeRecurring,
+      totalMonthlyRecurring,
+      totalMonthlyObligations,
+      totalSpent,
+      totalWithObligations,
+      remaining,
+      spendingRate,
+      totalSavingsGoal,
+      totalSavingsCurrent,
+      savingsProgress,
+      healthScore,
+      obligationRate,
+    };
+  }, [emis, recurringExpenses, savingsGoals, expenses, income, selectedPeriod]);
 
+  // Get health status
   const getHealthStatus = (score: number) => {
     if (score >= 80)
       return {
@@ -241,7 +276,7 @@ export function EnhancedMainDashboard({
     };
   };
 
-  const healthStatus = getHealthStatus(healthScore);
+  const healthStatus = getHealthStatus(calculations.healthScore);
 
   if (isLoading) {
     return (
@@ -256,70 +291,6 @@ export function EnhancedMainDashboard({
 
   return (
     <div className="space-y-6">
-      
-
-      {/* Monthly Obligations Summary */}
-      {totalMonthlyObligations > 0 && (
-        <Card className="p-5 shadow-xl border-2 border-primary/10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-medium">Total Monthly Obligations</h4>
-              <p className="text-xs text-muted-foreground">
-                EMI + Recurring expenses
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-baseline justify-between gap-2 flex-wrap">
-              <span className="text-3xl font-bold tabular-nums">
-                {currency} {totalMonthlyObligations.toLocaleString()}
-              </span>
-              <Badge variant="outline" className="shrink-0">
-                {income > 0
-                  ? `${((totalMonthlyObligations / income) * 100).toFixed(
-                      1
-                    )}% of income`
-                  : "0%"}
-              </Badge>
-            </div>
-
-            <Progress
-              value={
-                income > 0
-                  ? Math.min((totalMonthlyObligations / income) * 100, 100)
-                  : 0
-              }
-              className="h-2"
-            />
-
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">EMI</p>
-                  <p className="text-sm font-medium tabular-nums truncate">
-                    {currency} {totalMonthlyEMI.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Repeat className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Recurring</p>
-                  <p className="text-sm font-medium tabular-nums truncate">
-                    {currency} {totalMonthlyRecurring.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
       {/* Main Overview Card */}
       <Card className="shadow-xl overflow-hidden">
         <div className="bg-primary p-6 text-primary-foreground">
@@ -355,9 +326,9 @@ export function EnhancedMainDashboard({
 
           <div className="space-y-4">
             <div>
-              <p className="text-sm opacity-90 mb-1">Total Spent</p>
+              <p className="text-sm opacity-90 mb-1">Total Spent & Obligations</p>
               <p className="text-4xl font-bold tabular-nums">
-                {currency} {totalSpent.toLocaleString()}
+                {currency} {calculations.totalWithObligations.toLocaleString()}
               </p>
             </div>
 
@@ -366,26 +337,29 @@ export function EnhancedMainDashboard({
                 <span>
                   of {currency} {income.toLocaleString()} income
                 </span>
-                <span className="font-medium">{spendingRate.toFixed(0)}%</span>
+                <span className="font-medium">
+                  {calculations.spendingRate.toFixed(0)}%
+                </span>
               </div>
               <Progress
-                value={Math.min(spendingRate, 100)}
+                value={Math.min(calculations.spendingRate, 100)}
                 className="h-2 bg-white/30 dark:bg-black/30"
               />
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              {remaining >= 0 ? (
+              {calculations.remaining >= 0 ? (
                 <>
                   <span className="flex items-center gap-1">
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
                     <span className="truncate">
-                      {currency} {remaining.toLocaleString()} remaining
+                      {currency} {calculations.remaining.toLocaleString()}{" "}
+                      remaining
                     </span>
                   </span>
                   <span className="opacity-90 shrink-0 ml-2">
-                    {periodExpenses.length} expense
-                    {periodExpenses.length !== 1 ? "s" : ""}
+                    {calculations.periodExpenses.length} expense
+                    {calculations.periodExpenses.length !== 1 ? "s" : ""}
                   </span>
                 </>
               ) : (
@@ -393,12 +367,13 @@ export function EnhancedMainDashboard({
                   <span className="flex items-center gap-1 text-yellow-300">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span className="truncate">
-                      Over by {currency} {Math.abs(remaining).toLocaleString()}
+                      Over by {currency}{" "}
+                      {Math.abs(calculations.remaining).toLocaleString()}
                     </span>
                   </span>
                   <span className="opacity-90 shrink-0 ml-2">
-                    {periodExpenses.length} expense
-                    {periodExpenses.length !== 1 ? "s" : ""}
+                    {calculations.periodExpenses.length} expense
+                    {calculations.periodExpenses.length !== 1 ? "s" : ""}
                   </span>
                 </>
               )}
@@ -418,8 +393,77 @@ export function EnhancedMainDashboard({
         </div>
       </Card>
 
+      {/* Monthly Obligations Summary */}
+      {calculations.totalMonthlyObligations > 0 && (
+        <Card className="p-5 shadow-xl border-2 border-primary/10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-medium">
+                Total Monthly Obligations
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                EMI + Recurring expenses
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between gap-2 flex-wrap">
+              <span className="text-3xl font-bold tabular-nums">
+                {currency}{" "}
+                {calculations.totalMonthlyObligations.toLocaleString()}
+              </span>
+              <Badge variant="outline" className="shrink-0">
+                {income > 0
+                  ? `${((calculations.totalMonthlyObligations / income) * 100).toFixed(
+                      1
+                    )}% of income`
+                  : "0%"}
+              </Badge>
+            </div>
+
+            <Progress
+              value={
+                income > 0
+                  ? Math.min(
+                      (calculations.totalMonthlyObligations / income) * 100,
+                      100
+                    )
+                  : 0
+              }
+              className="h-2"
+            />
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">EMI</p>
+                  <p className="text-sm font-medium tabular-nums truncate">
+                    {currency} {calculations.totalMonthlyEMI.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Repeat className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Recurring</p>
+                  <p className="text-sm font-medium tabular-nums truncate">
+                    {currency}{" "}
+                    {calculations.totalMonthlyRecurring.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Financial Health Card */}
-      {expenses.length > 0 && (
+      {calculations.periodExpenses.length > 0 && (
         <Card
           className="p-4 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800"
           onClick={onViewHealth}
@@ -428,9 +472,12 @@ export function EnhancedMainDashboard({
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <Activity className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Financial Health Score</p>
+                <p className="text-sm font-medium">
+                  Financial Health Score
+                </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {healthScore.toFixed(0)}/100 • {healthStatus.label}
+                  {calculations.healthScore.toFixed(0)}/100 •{" "}
+                  {healthStatus.label}
                 </p>
               </div>
             </div>
@@ -438,103 +485,116 @@ export function EnhancedMainDashboard({
           </div>
         </Card>
       )}
+
       {/* Finance Widgets Grid */}
-{(activeEMIs.length > 0 ||
-  activeRecurring.length > 0 ||
-  savingsGoals.length > 0) && (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-    {/* EMI Tracker Widget */}
-    {activeEMIs.length > 0 && (
-      <Card
-        className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
-        onClick={onViewEMI}
-      >
-        <div className="flex flex-col md:flex-col gap-3">
-          <div className="flex items-start justify-between">
-            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center shrink-0">
-              <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            </div>
-            <Badge className="bg-purple-600 text-xs shrink-0">
-              {activeEMIs.length}
-            </Badge>
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">EMI Tracker</p>
-            <p className="text-xl md:text-2xl font-bold tabular-nums mb-2">
-              {currency} {totalMonthlyEMI.toLocaleString()}
-            </p>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{activeEMIs.length} active</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-        </div>
-      </Card>
-    )}
+      {(calculations.activeEMIs.length > 0 ||
+        calculations.activeRecurring.length > 0 ||
+        savingsGoals.length > 0) && (
+        <div
+          className="grid gap-3 md:gap-4"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          }}
+        >
+          {/* EMI Tracker Widget */}
+          {calculations.activeEMIs.length > 0 && (
+            <Card
+              className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+              onClick={onViewEMI}
+            >
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center shrink-0">
+                    <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <Badge className="bg-purple-600 text-xs shrink-0">
+                    {calculations.activeEMIs.length}
+                  </Badge>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    EMI Tracker
+                  </p>
+                  <p className="text-xl md:text-2xl font-bold tabular-nums mb-2">
+                    {currency} {calculations.totalMonthlyEMI.toLocaleString()}
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{calculations.activeEMIs.length} active</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
 
-    {/* Recurring Expenses Widget */}
-    {activeRecurring.length > 0 && (
-      <Card
-        className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
-        onClick={onViewRecurring}
-      >
-        <div className="flex flex-col md:flex-col gap-3">
-          <div className="flex items-start justify-between">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center shrink-0">
-              <Repeat className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <Badge className="bg-blue-600 text-xs shrink-0">
-              {activeRecurring.length}
-            </Badge>
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">Recurring</p>
-            <p className="text-xl md:text-2xl font-bold tabular-nums mb-2">
-              {currency} {totalMonthlyRecurring.toLocaleString()}
-            </p>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{activeRecurring.length} active</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-        </div>
-      </Card>
-    )}
+          {/* Recurring Expenses Widget */}
+          {calculations.activeRecurring.length > 0 && (
+            <Card
+              className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+              onClick={onViewRecurring}
+            >
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center shrink-0">
+                    <Repeat className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <Badge className="bg-blue-600 text-xs shrink-0">
+                    {calculations.activeRecurring.length}
+                  </Badge>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Recurring
+                  </p>
+                  <p className="text-xl md:text-2xl font-bold tabular-nums mb-2">
+                    {currency}{" "}
+                    {calculations.totalMonthlyRecurring.toLocaleString()}
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{calculations.activeRecurring.length} active</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
 
-    {/* Savings Goals Widget */}
-    {savingsGoals.length > 0 && (
-      <Card
-        className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
-        onClick={onViewGoals}
-      >
-        <div className="flex flex-col md:flex-col gap-3">
-          <div className="flex items-start justify-between">
-            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center shrink-0">
-              <Target className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <Badge className="bg-amber-600 text-xs shrink-0">
-              {savingsGoals.length}
-            </Badge>
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">Savings Goals</p>
-            <p className="text-xl md:text-2xl font-bold tabular-nums mb-2">
-              {savingsProgress.toFixed(0)}%
-            </p>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="truncate">
-                {currency} {totalSavingsCurrent.toLocaleString()} /{" "}
-                {totalSavingsGoal.toLocaleString()}
-              </span>
-              <ArrowRight className="w-4 h-4 shrink-0" />
-            </div>
-          </div>
+          {/* Savings Goals Widget */}
+          {savingsGoals.length > 0 && (
+            <Card
+              className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+              onClick={onViewGoals}   
+            >
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center shrink-0">
+                    <Target className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <Badge className="bg-amber-600 text-xs shrink-0">
+                    {savingsGoals.length}
+                  </Badge>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Savings Goals
+                  </p>
+                  <p className="text-xl md:text-2xl font-bold tabular-nums mb-2">
+                    {calculations.savingsProgress.toFixed(0)}%
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="truncate">
+                      {currency}{" "}
+                      {calculations.totalSavingsCurrent.toLocaleString()} /{" "}
+                      {calculations.totalSavingsGoal.toLocaleString()}
+                    </span>
+                    <ArrowRight className="w-4 h-4 shrink-0" />
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
-      </Card>
-    )}
-  </div>
-)}
-
+      )}
 
       {/* Recent Expenses List */}
       {expenses.length > 0 && (

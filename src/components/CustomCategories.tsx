@@ -146,10 +146,6 @@ export function CustomCategories({
           <p className="text-sm text-muted-foreground mt-2 mb-4">
             Create custom categories for your unique expenses
           </p>
-          <Button onClick={() => setShowDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create First Category
-          </Button>
         </Card>
       ) : (
         <div className="space-y-3">

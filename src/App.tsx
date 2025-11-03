@@ -429,6 +429,7 @@ export default function App() {
       <QuickOnboarding
         onComplete={handleOnboardingComplete}
         userName={userProfile.name}
+        categories={[...EXPENSE_CATEGORIES, ...customCategories]} // ← Add this line
       />
     );
   }

@@ -27,14 +27,17 @@ interface UserProfile {
 }
 
 interface AuthScreenProps {
-  onAuthSuccess: (profile: UserProfile) => void;
+  onAuthSuccess: (profile: UserProfile, isNewUser: boolean) => void;
 }
 
 export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
+  const [activeTab, setActiveTab] = useState("login");
+
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
@@ -43,11 +46,13 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSignupLoading, setIsSignupLoading] = useState(false);
+  const [signupError, setSignupError] = useState("");
 
   const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   // Handle Demo Login
   const handleDemoLogin = async () => {
+    setLoginError("");
     setIsDemoLoading(true);
     try {
       // Try to login with demo credentials
@@ -56,9 +61,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         password: "demo123",
       });
 
-      const userData = response.data.data; // Your backend structure
-
-      // Store token
+      const userData = response.data.data;
       localStorage.setItem("authToken", userData.token);
 
       toast.success(`Welcome, ${userData.name}! 👋`);
@@ -77,16 +80,16 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           localStorage.setItem("authToken", userData.token);
 
           toast.success("Demo account created! Welcome! 🎉");
-          onAuthSuccess(userData, false);
+          onAuthSuccess(userData, true);
         } catch (createError: any) {
           const message =
             createError.response?.data?.message ||
             "Failed to create demo account";
-          toast.error(message);
+          setLoginError(message);
         }
       } else {
         const message = error.response?.data?.message || "Demo login failed";
-        toast.error(message);
+        setLoginError(message);
       }
     } finally {
       setIsDemoLoading(false);
@@ -96,15 +99,16 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError("");
 
     if (!loginEmail || !loginPassword) {
-      toast.error("Please fill in all fields");
+      setLoginError("Please fill in all fields");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(loginEmail)) {
-      toast.error("Please enter a valid email address");
+      setLoginError("Please enter a valid email address");
       return;
     }
 
@@ -116,19 +120,18 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         password: loginPassword,
       });
 
-      const userData = response.data.data; // Backend returns data in 'data' field
-
-      // Store token
+      const userData = response.data.data;
       localStorage.setItem("authToken", userData.token);
 
       toast.success(`Welcome back, ${userData.name}! 👋`);
+      // Pass FALSE for existing user login
       onAuthSuccess(userData, false);
     } catch (error: any) {
       console.error("Login error:", error);
       const message =
         error.response?.data?.message ||
         "Login failed. Please check your credentials.";
-      toast.error(message);
+      setLoginError(message);
     } finally {
       setIsLoginLoading(false);
     }
@@ -137,6 +140,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   // Handle Signup
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSignupError("");
 
     if (
       !signupName ||
@@ -144,23 +148,23 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       !signupPassword ||
       !signupConfirmPassword
     ) {
-      toast.error("Please fill in all fields");
+      setSignupError("Please fill in all fields");
       return;
     }
 
     if (signupPassword !== signupConfirmPassword) {
-      toast.error("Passwords do not match");
+      setSignupError("Passwords do not match");
       return;
     }
 
     if (signupPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      setSignupError("Password must be at least 6 characters");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(signupEmail)) {
-      toast.error("Please enter a valid email address");
+      setSignupError("Please enter a valid email address");
       return;
     }
 
@@ -173,18 +177,17 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         password: signupPassword,
       });
 
-      const userData = response.data.data; // Backend returns data in 'data' field
-
-      // Store token
+      const userData = response.data.data;
       localStorage.setItem("authToken", userData.token);
 
       toast.success(`Welcome, ${userData.name}! 🎉 Your account is ready!`);
+      // Pass TRUE for new user signup
       onAuthSuccess(userData, true);
     } catch (error: any) {
       console.error("Signup error:", error);
       const message =
         error.response?.data?.message || "Signup failed. Please try again.";
-      toast.error(message);
+      setSignupError(message);
     } finally {
       setIsSignupLoading(false);
     }
@@ -210,7 +213,11 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
         {/* Auth Card */}
         <Card className="p-6 shadow-xl border-2">
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -218,6 +225,16 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Login Tab */}
             <TabsContent value="login">
+              {/* Error Alert */}
+              {loginError && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-900 dark:text-red-100 flex items-center gap-2">
+                    <span>⚠️</span>
+                    {loginError}
+                  </p>
+                </div>
+              )}
+
               <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
                 <p className="text-sm text-green-900 dark:text-green-100">
                   👋 Welcome back! Enter your credentials to continue
@@ -242,7 +259,15 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="login-password">Password</Label>
+                    <a
+                      href="#"
+                      className="text-sm text-primary font-semibold hover:underline"
+                    >
+                      Forgot Password?
+                    </a>
+                  </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
@@ -288,15 +313,10 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   )}
                 </Button>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      Or
-                    </span>
-                  </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or
+                  </span>
                 </div>
 
                 <Button
@@ -317,14 +337,30 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </Button>
 
                 <p className="text-sm text-muted-foreground text-center">
-                  Don't have an account? Switch to{" "}
-                  <span className="text-primary font-semibold">Sign Up</span>
+                  Don't have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("signup")}
+                    className="text-primary font-semibold hover:underline cursor-pointer"
+                  >
+                    Sign Up
+                  </button>
                 </p>
               </form>
             </TabsContent>
 
             {/* Signup Tab */}
             <TabsContent value="signup">
+              {/* Error Alert */}
+              {signupError && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-900 dark:text-red-100 flex items-center gap-2">
+                    <span>⚠️</span>
+                    {signupError}
+                  </p>
+                </div>
+              )}
+
               <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-sm text-blue-900 dark:text-blue-100">
                   ✨ Create your free account to start tracking expenses!
@@ -449,8 +485,14 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </Button>
 
                 <p className="text-sm text-muted-foreground text-center">
-                  Already have an account? Switch to{" "}
-                  <span className="text-primary font-semibold">Login</span>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("login")}
+                    className="text-primary font-semibold hover:underline cursor-pointer"
+                  >
+                    Login
+                  </button>
                 </p>
               </form>
             </TabsContent>
@@ -479,10 +521,10 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         {/* Footer */}
         <div className="text-center mt-6 space-y-2">
           <p className="text-xs text-muted-foreground">
-            🔒 Your data is stored securely on MongoDB with encrypted passwords
+            🔒 Your data is stored securely with encrypted passwords
           </p>
           <p className="text-xs text-green-600 dark:text-green-400 font-medium">
-            No account? Click "Try Demo Account" to explore instantly!
+            No account? Click "Sign Up" to create one instantly!
           </p>
         </div>
       </div>
