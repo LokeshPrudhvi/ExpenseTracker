@@ -50,52 +50,6 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
   const [isDemoLoading, setIsDemoLoading] = useState(false);
 
-  // Handle Demo Login
-  const handleDemoLogin = async () => {
-    setLoginError("");
-    setIsDemoLoading(true);
-    try {
-      // Try to login with demo credentials
-      const response = await axios.post(`${API_URL}/login`, {
-        email: "demo@expensetracker.com",
-        password: "demo123",
-      });
-
-      const userData = response.data.data;
-      localStorage.setItem("authToken", userData.token);
-
-      toast.success(`Welcome, ${userData.name}! 👋`);
-      onAuthSuccess(userData, false);
-    } catch (error: any) {
-      // If demo user doesn't exist, create it
-      if (error.response?.status === 401) {
-        try {
-          const createResponse = await axios.post(`${API_URL}/register`, {
-            name: "Demo User",
-            email: "demo@expensetracker.com",
-            password: "demo123",
-          });
-
-          const userData = createResponse.data.data;
-          localStorage.setItem("authToken", userData.token);
-
-          toast.success("Demo account created! Welcome! 🎉");
-          onAuthSuccess(userData, true);
-        } catch (createError: any) {
-          const message =
-            createError.response?.data?.message ||
-            "Failed to create demo account";
-          setLoginError(message);
-        }
-      } else {
-        const message = error.response?.data?.message || "Demo login failed";
-        setLoginError(message);
-      }
-    } finally {
-      setIsDemoLoading(false);
-    }
-  };
-
   // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,23 +272,6 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                     Or
                   </span>
                 </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleDemoLogin}
-                  disabled={isDemoLoading}
-                >
-                  {isDemoLoading ? (
-                    <>
-                      <span className="animate-spin mr-2">⏳</span>
-                      Loading Demo...
-                    </>
-                  ) : (
-                    "Try Demo Account"
-                  )}
-                </Button>
 
                 <p className="text-sm text-muted-foreground text-center">
                   Don't have an account?{" "}
