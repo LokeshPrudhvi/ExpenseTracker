@@ -63,22 +63,42 @@ export function EMITracker({
   isOnboarding = false,
 }: EMITrackerProps) {
   const [emis, setEmis] = useState<EMI[]>([]);
-  const [isAdding, setIsAdding] = useState(isOnboarding); // Start with form open if onboarding
+  const [isAdding, setIsAdding] = useState(isOnboarding);
   const [isLoading, setIsLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [newEMI, setNewEMI] = useState({
     name: "",
-    totalAmount: "",
     monthlyEMI: "",
     startDate: "",
     endDate: "",
     dueDate: "1",
     category: "EMI",
-    interestRate: "",
+    interestRate: "0",
     notes: "",
   });
 
-  // Fetch EMIs on mount - SKIP if onboarding
+  // NEW: Helper to calculate months between dates
+  const calculateMonthsBetween = (start: string, end: string): number => {
+    if (!start || !end) return 0;
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    return (
+      (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+      (endDate.getMonth() - startDate.getMonth())
+    );
+  };
+
+  // NEW: Calculate total amount based on monthly EMI and dates
+  const calculateTotalAmount = (): string => {
+    if (!newEMI.monthlyEMI || !newEMI.startDate || !newEMI.endDate) {
+      return "0";
+    }
+    const monthlyEMI = parseFloat(newEMI.monthlyEMI);
+    const months = calculateMonthsBetween(newEMI.startDate, newEMI.endDate);
+    return (monthlyEMI * months).toFixed(2);
+  };
+
+  // Fetch EMIs on mount
   useEffect(() => {
     if (!isOnboarding) {
       fetchEMIs();
@@ -90,7 +110,6 @@ export function EMITracker({
       const config = getAuthConfig();
       const response = await axios.get(`${API_URL}/emi`, config);
 
-      // Normalize _id to id
       const normalizedEMIs = (response.data.data || []).map((emi: any) => ({
         ...emi,
         id: emi._id,
@@ -147,14 +166,22 @@ export function EMITracker({
   const handleAddEMI = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // NEW: Check only required fields (removed totalAmount)
     if (
       !newEMI.name ||
-      !newEMI.totalAmount ||
       !newEMI.monthlyEMI ||
       !newEMI.startDate ||
       !newEMI.endDate
     ) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // NEW: Calculate total amount
+    const totalAmount = parseFloat(calculateTotalAmount());
+
+    if (totalAmount <= 0) {
+      toast.error("Invalid date range or monthly EMI");
       return;
     }
 
@@ -164,9 +191,9 @@ export function EMITracker({
 
       const emiData = {
         name: newEMI.name,
-        totalAmount: parseFloat(newEMI.totalAmount),
+        totalAmount: totalAmount, // Auto-calculated
         monthlyEMI: parseFloat(newEMI.monthlyEMI),
-        remainingAmount: parseFloat(newEMI.totalAmount),
+        remainingAmount: totalAmount, // Auto-calculated
         startDate: newEMI.startDate,
         endDate: newEMI.endDate,
         dueDate: parseInt(newEMI.dueDate),
@@ -179,7 +206,6 @@ export function EMITracker({
 
       const response = await axios.post(`${API_URL}/emi`, emiData, config);
 
-      // Normalize response
       const normalizedEMI = {
         ...response.data.data,
         id: response.data.data._id,
@@ -189,17 +215,15 @@ export function EMITracker({
 
       setNewEMI({
         name: "",
-        totalAmount: "",
         monthlyEMI: "",
         startDate: "",
         endDate: "",
         dueDate: "1",
         category: "EMI",
-        interestRate: "",
+        interestRate: "0",
         notes: "",
       });
 
-      // Only close form if not onboarding
       if (!isOnboarding) {
         setIsAdding(false);
       }
@@ -278,20 +302,6 @@ export function EMITracker({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="total-amount">Total Loan Amount *</Label>
-                <Input
-                  id="total-amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={newEMI.totalAmount}
-                  onChange={(e) =>
-                    setNewEMI({ ...newEMI, totalAmount: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="monthly-emi">Monthly EMI Amount *</Label>
                 <Input
                   id="monthly-emi"
@@ -301,20 +311,6 @@ export function EMITracker({
                   value={newEMI.monthlyEMI}
                   onChange={(e) =>
                     setNewEMI({ ...newEMI, monthlyEMI: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="interest-rate">Interest Rate (%)</Label>
-                <Input
-                  id="interest-rate"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={newEMI.interestRate}
-                  onChange={(e) =>
-                    setNewEMI({ ...newEMI, interestRate: e.target.value })
                   }
                 />
               </div>
@@ -357,29 +353,22 @@ export function EMITracker({
                 />
               </div>
 
+              {/* NEW: Display calculated total (read-only) */}
               <div className="space-y-2">
-                <Label htmlFor="emi-category">Category</Label>
-                <Input
-                  id="emi-category"
-                  placeholder="e.g., Personal, Vehicle"
-                  value={newEMI.category}
-                  onChange={(e) =>
-                    setNewEMI({ ...newEMI, category: e.target.value })
-                  }
-                />
+                <Label htmlFor="total-amount">Total Amount (Auto)</Label>
+                <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                  <span className="text-sm font-medium">
+                    {currency}{" "}
+                    {parseFloat(calculateTotalAmount()).toLocaleString(
+                      "en-US",
+                      { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Calculated automatically
+                </p>
               </div>
-            </div>
-
-            <div className="space-y-2 mt-4">
-              <Label htmlFor="notes">Notes</Label>
-              <Input
-                id="notes"
-                placeholder="Add any notes..."
-                value={newEMI.notes}
-                onChange={(e) =>
-                  setNewEMI({ ...newEMI, notes: e.target.value })
-                }
-              />
             </div>
 
             <div className="flex gap-2 mt-4">
@@ -395,13 +384,12 @@ export function EMITracker({
                     setIsAdding(false);
                     setNewEMI({
                       name: "",
-                      totalAmount: "",
                       monthlyEMI: "",
                       startDate: "",
                       endDate: "",
                       dueDate: "1",
                       category: "EMI",
-                      interestRate: "",
+                      interestRate: "0",
                       notes: "",
                     });
                   }}

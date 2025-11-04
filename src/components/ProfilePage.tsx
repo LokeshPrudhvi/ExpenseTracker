@@ -6,7 +6,16 @@ import { Label } from "./ui/label";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
-import { User, Mail, Calendar, Edit, Save, X, LogOut, RotateCcw } from "lucide-react";
+import {
+  User,
+  Mail,
+  Calendar,
+  Edit,
+  Save,
+  X,
+  LogOut,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "sonner@2.0.3";
 
 interface UserProfile {
@@ -23,7 +32,12 @@ interface ProfilePageProps {
   onCompleteReset?: () => void;
 }
 
-export function ProfilePage({ profile, onUpdateProfile, onLogout, onCompleteReset }: ProfilePageProps) {
+export function ProfilePage({
+  profile,
+  onUpdateProfile,
+  onLogout,
+  onCompleteReset,
+}: ProfilePageProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(profile.name);
   const [editEmail, setEditEmail] = useState(profile.email);
@@ -34,17 +48,17 @@ export function ProfilePage({ profile, onUpdateProfile, onLogout, onCompleteRese
   const getInitials = (name: string) => {
     return name
       .split(" ")
-      .map(n => n[0])
+      .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -57,7 +71,7 @@ export function ProfilePage({ profile, onUpdateProfile, onLogout, onCompleteRese
     const updatedProfile = {
       ...profile,
       name: editName,
-      email: editEmail
+      email: editEmail,
     };
 
     localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
@@ -89,7 +103,7 @@ export function ProfilePage({ profile, onUpdateProfile, onLogout, onCompleteRese
 
     const updatedProfile = {
       ...profile,
-      password: newPassword
+      password: newPassword,
     };
 
     localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
@@ -122,43 +136,55 @@ export function ProfilePage({ profile, onUpdateProfile, onLogout, onCompleteRese
         </p>
       </div>
 
-      {/* Profile Header Card */}
-      <Card className="p-6 shadow-xl">
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Avatar className="w-20 h-20 text-2xl">
+      {/* Profile Header Card - FIXED FOR MOBILE */}
+      <Card className="p-4 md:p-6 shadow-xl">
+        {/* Header Section - Responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+          {/* Avatar and Info */}
+          <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+            <Avatar className="w-16 h-16 sm:w-20 sm:h-20 text-lg sm:text-2xl shrink-0">
               <AvatarFallback className="bg-primary text-white">
                 {getInitials(profile.name)}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h2>{profile.name}</h2>
-              <p className="text-muted-foreground">{profile.email}</p>
-              <Badge variant="secondary" className="mt-2">
-                <Calendar className="w-3 h-3 mr-1" />
-                Member since {formatDate(profile.createdAt)}
+
+            {/* Name, Email, Badge */}
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate">{profile.name}</h2>
+              <p className="text-sm sm:text-base text-muted-foreground truncate">
+                {profile.email}
+              </p>
+              <Badge variant="secondary" className="mt-2 text-xs sm:text-sm">
+                <Calendar className="w-3 h-3 mr-1 shrink-0" />
+                <span className="truncate">
+                  Member since {formatDate(profile.createdAt)}
+                </span>
               </Badge>
             </div>
           </div>
+
+          {/* Edit Button - Full width on mobile */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsEditing(!isEditing)}
+            className="w-full sm:w-auto shrink-0"
           >
             {isEditing ? (
               <>
-                <X className="w-4 h-4 mr-2" />
+                <X className="w-4 h-4 mr-2 shrink-0" />
                 Cancel
               </>
             ) : (
               <>
-                <Edit className="w-4 h-4 mr-2" />
+                <Edit className="w-4 h-4 mr-2 shrink-0" />
                 Edit Profile
               </>
             )}
           </Button>
         </div>
 
+        {/* Editing Section */}
         {isEditing ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -190,12 +216,16 @@ export function ProfilePage({ profile, onUpdateProfile, onLogout, onCompleteRese
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button onClick={handleSaveProfile}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={handleSaveProfile} className="w-full sm:w-auto">
                 <Save className="w-4 h-4 mr-2" />
                 Save Changes
               </Button>
-              <Button variant="outline" onClick={handleCancelEdit}>
+              <Button
+                variant="outline"
+                onClick={handleCancelEdit}
+                className="w-full sm:w-auto"
+              >
                 Cancel
               </Button>
             </div>
@@ -204,18 +234,18 @@ export function ProfilePage({ profile, onUpdateProfile, onLogout, onCompleteRese
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Full Name</p>
-              <p>{profile.name}</p>
+              <p className="break-words">{profile.name}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Email Address</p>
-              <p>{profile.email}</p>
+              <p className="break-all text-sm sm:text-base">{profile.email}</p>
             </div>
           </div>
         )}
       </Card>
 
       {/* Change Password Card */}
-      <Card className="p-6 shadow-xl">
+      <Card className="p-4 md:p-6 shadow-xl">
         <h3 className="mb-4">Change Password</h3>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -253,45 +283,55 @@ export function ProfilePage({ profile, onUpdateProfile, onLogout, onCompleteRese
             </div>
           </div>
 
-          <Button onClick={handleChangePassword}>
+          <Button onClick={handleChangePassword} className="w-full">
             Change Password
           </Button>
         </div>
       </Card>
 
       {/* Account Actions */}
-      <Card className="p-6 shadow-xl">
+      <Card className="p-4 md:p-6 shadow-xl">
         <h3 className="mb-4">Account Actions</h3>
         <div className="space-y-4">
-          <div className="flex items-start justify-between p-4 border rounded-lg">
-            <div>
-              <p>Logout</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg">
+            <div className="min-w-0">
+              <p className="font-medium">Logout</p>
               <p className="text-sm text-muted-foreground">
                 Sign out of your account
               </p>
             </div>
-            <Button variant="outline" onClick={handleLogout}>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="w-full sm:w-auto shrink-0"
+            >
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
           </div>
 
           {onCompleteReset && (
-            <div className="flex items-start justify-between p-4 border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-              <div>
-                <p className="text-orange-900 dark:text-orange-100">Complete Reset</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+              <div className="min-w-0">
+                <p className="font-medium text-orange-900 dark:text-orange-100">
+                  Complete Reset
+                </p>
                 <p className="text-sm text-orange-700 dark:text-orange-300">
                   Start fresh from login screen (for testing)
                 </p>
               </div>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
-                  if (confirm("This will clear ALL data and return to login screen. Continue?")) {
+                  if (
+                    confirm(
+                      "This will clear ALL data and return to login screen. Continue?"
+                    )
+                  ) {
                     onCompleteReset();
                   }
                 }}
-                className="border-orange-500 text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900"
+                className="w-full sm:w-auto border-orange-500 text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900 shrink-0"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
@@ -301,8 +341,8 @@ export function ProfilePage({ profile, onUpdateProfile, onLogout, onCompleteRese
 
           <div className="p-4 bg-muted rounded-lg">
             <p className="text-sm text-muted-foreground">
-              <strong>Note:</strong> Your expense data is stored locally on your device. 
-              Clearing browser data will remove all your information.
+              <strong>Note:</strong> Your expense data is stored locally on your
+              device. Clearing browser data will remove all your information.
             </p>
           </div>
         </div>

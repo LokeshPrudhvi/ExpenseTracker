@@ -6,6 +6,7 @@ import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
 import { ExpenseList } from "./ExpenseList";
+import { DatePicker } from "./DatePicker"; // NEW: Import date picker
 import {
   Plus,
   Calendar,
@@ -20,6 +21,8 @@ import {
   Clock,
   Zap,
   PieChart,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -100,6 +103,8 @@ export function EnhancedMainDashboard({
   const [selectedPeriod, setSelectedPeriod] = useState<"month" | "week">(
     "month"
   );
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false); // NEW: Control picker visibility
   const [emis, setEmis] = useState<EMI[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<
     RecurringExpense[]
@@ -125,14 +130,12 @@ export function EnhancedMainDashboard({
       setIsLoading(true);
       const config = getAuthConfig();
 
-      // Fetch only EMI, recurring, and goals - expenses come from props
       const [emisRes, recurringRes, goalsRes] = await Promise.all([
         axios.get(`${API_URL}/emi`, config),
         axios.get(`${API_URL}/recurring`, config),
         axios.get(`${API_URL}/savings`, config),
       ]);
 
-      // Backend returns data in response.data.data
       setEmis(emisRes.data.data || []);
       setRecurringExpenses(recurringRes.data.data || []);
       setSavingsGoals(goalsRes.data.data || []);
@@ -148,68 +151,95 @@ export function EnhancedMainDashboard({
     }
   };
 
+  // Helper functions for date navigation
+  const goToPreviousMonth = () => {
+    setSelectedDate((prev) => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() - 1);
+      return newDate;
+    });
+  };
+
+  const goToNextMonth = () => {
+    setSelectedDate((prev) => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + 1);
+      return newDate;
+    });
+  };
+
+  const goToToday = () => {
+    setSelectedDate(new Date());
+  };
+
+  const isCurrentMonth = () => {
+    const today = new Date();
+    return (
+      selectedDate.getMonth() === today.getMonth() &&
+      selectedDate.getFullYear() === today.getFullYear()
+    );
+  };
+
+  // NEW: Handle date change from picker
+  const handleDatePickerChange = (newDate: Date) => {
+    setSelectedDate(newDate);
+  };
+
   // Wrap all calculations in useMemo with proper dependencies
   const calculations = useMemo(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0); // Normalize to start of day
+    let referenceDate = new Date(selectedDate);
+    referenceDate.setHours(0, 0, 0, 0);
 
-    // Get current period expenses with normalized dates
     const periodExpenses = expenses.filter((exp) => {
       const expDate = new Date(exp.date);
-      expDate.setHours(0, 0, 0, 0); // Normalize to start of day
+      expDate.setHours(0, 0, 0, 0);
 
       if (selectedPeriod === "month") {
         return (
-          expDate.getMonth() === now.getMonth() &&
-          expDate.getFullYear() === now.getFullYear()
+          expDate.getMonth() === referenceDate.getMonth() &&
+          expDate.getFullYear() === referenceDate.getFullYear()
         );
       } else {
-        const weekAgo = new Date(now);
+        const weekAgo = new Date(referenceDate);
         weekAgo.setDate(weekAgo.getDate() - 7);
-        return expDate >= weekAgo;
+        return expDate >= weekAgo && expDate <= referenceDate;
       }
     });
 
-    // Calculate active EMIs
     const activeEMIs = emis.filter((emi) => {
       const endDate = new Date(emi.endDate);
       endDate.setHours(0, 0, 0, 0);
-      return endDate >= now;
+      return endDate >= referenceDate;
     });
     const totalMonthlyEMI = activeEMIs.reduce(
       (sum, emi) => sum + (emi.monthlyEMI || 0),
       0
     );
 
-    // Calculate active recurring expenses
     const activeRecurring = recurringExpenses.filter((rec) => {
       if (rec.endDate) {
         const endDate = new Date(rec.endDate);
         endDate.setHours(0, 0, 0, 0);
-        return endDate >= now;
+        return endDate >= referenceDate;
       }
-      return true; // No end date means it's active
+      return true;
     });
     const totalMonthlyRecurring = activeRecurring.reduce(
       (sum, rec) => sum + (rec.amount || 0),
       0
     );
 
-    // Total monthly obligations
     const totalMonthlyObligations = totalMonthlyEMI + totalMonthlyRecurring;
 
-    // Total spent from expenses
     const totalSpent = periodExpenses.reduce(
       (sum, exp) => sum + (exp.amount || 0),
       0
     );
 
-    // IMPORTANT: Include obligations in monthly spent automatically
     const totalWithObligations = totalSpent + totalMonthlyObligations;
     const remaining = income - totalWithObligations;
     const spendingRate = income > 0 ? (totalWithObligations / income) * 100 : 0;
 
-    // Savings goals stats
     const totalSavingsGoal = savingsGoals.reduce(
       (sum, goal) => sum + (goal.targetAmount || 0),
       0
@@ -221,20 +251,16 @@ export function EnhancedMainDashboard({
     const savingsProgress =
       totalSavingsGoal > 0 ? (totalSavingsCurrent / totalSavingsGoal) * 100 : 0;
 
-    // Calculate financial health score
     let healthScore = 100;
 
-    // Spending rate impact (includes obligations)
     if (spendingRate > 100) healthScore -= 30;
     else if (spendingRate > 80) healthScore -= 15;
 
-    // Obligation rate impact
     const obligationRate =
       income > 0 ? (totalMonthlyObligations / income) * 100 : 0;
     if (obligationRate > 60) healthScore -= 25;
     else if (obligationRate > 40) healthScore -= 15;
 
-    // Savings progress impact
     if (savingsProgress > 80) healthScore += 10;
     else if (savingsProgress > 50) healthScore += 5;
 
@@ -257,9 +283,8 @@ export function EnhancedMainDashboard({
       healthScore,
       obligationRate,
     };
-  }, [emis, recurringExpenses, savingsGoals, expenses, income, selectedPeriod]);
+  }, [emis, recurringExpenses, savingsGoals, expenses, income, selectedPeriod, selectedDate]);
 
-  // Get health status
   const getHealthStatus = (score: number) => {
     if (score >= 80)
       return {
@@ -291,20 +316,65 @@ export function EnhancedMainDashboard({
 
   return (
     <div className="space-y-6">
+      {/* NEW: Date Picker Modal */}
+      {showDatePicker && (
+        <DatePicker
+          selectedDate={selectedDate}
+          onDateChange={handleDatePickerChange}
+          onClose={() => setShowDatePicker(false)}
+        />
+      )}
+
       {/* Main Overview Card */}
       <Card className="shadow-xl overflow-hidden">
         <div className="bg-primary p-6 text-primary-foreground">
+          {/* Date Navigation Controls */}
           <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 shrink-0" />
-              <span className="text-sm font-medium">
-                {new Date().toLocaleDateString("en-US", {
+            {/* NEW: Clickable month/year to open picker */}
+            <button
+              onClick={() => setShowDatePicker(true)}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer group"
+            >
+              <Calendar className="w-5 h-5 shrink-0 group-hover:scale-110 transition-transform" />
+              <span className="text-sm font-medium group-hover:underline">
+                {selectedDate.toLocaleDateString("en-US", {
                   month: "long",
                   year: "numeric",
                 })}
               </span>
-            </div>
-            <div className="flex gap-2">
+            </button>
+
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={goToPreviousMonth}
+                className="h-7 text-xs"
+                title="Previous month"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              {!isCurrentMonth() && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={goToToday}
+                  className="h-7 text-xs"
+                >
+                  Today
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={goToNextMonth}
+                className="h-7 text-xs"
+                title="Next month"
+                disabled={isCurrentMonth()}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              <div className="w-px bg-white/20"></div>
               <Button
                 variant={selectedPeriod === "week" ? "secondary" : "ghost"}
                 size="sm"
@@ -563,7 +633,7 @@ export function EnhancedMainDashboard({
           {savingsGoals.length > 0 && (
             <Card
               className="p-3 md:p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
-              onClick={onViewGoals}   
+              onClick={onViewGoals}
             >
               <div className="flex flex-col gap-3">
                 <div className="flex items-start justify-between">
